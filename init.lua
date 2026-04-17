@@ -98,6 +98,16 @@ vim.g.have_nerd_font = false
 -- NOTE: You can change these options as you wish!
 --  For more options, you can see `:help option-list`
 
+-- Default indentation: 4 spaces, use spaces for <Tab>, shift by 4 columns
+vim.opt.tabstop = 4 -- how wide a TAB looks
+vim.opt.shiftwidth = 4 -- how many spaces <Tab>/<Shift>-<Tab> moves
+vim.opt.softtabstop = 4 -- <Tab> inserts this many spaces
+vim.opt.expandtab = true -- <Tab> == spaces, not a literal tab
+
+vim.opt.autoindent = true -- copy indent from previous line
+vim.opt.smartindent = true -- minor language‑specific tweaks
+vim.opt.cindent = false -- (optional) disable C‑style auto‑indent
+
 -- Make line numbers default
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
@@ -180,11 +190,11 @@ vim.diagnostic.config {
   underline = { severity = { min = vim.diagnostic.severity.WARN } },
 
   -- Can switch between these as you prefer
-  virtual_text = true, -- Text shows up at the end of the line
-  virtual_lines = false, -- Text shows up underneath the line, with virtual lines
+  virtual_text = false, -- Text shows up at the end of the line
+  virtual_lines = true, -- Text shows up underneath the line, with virtual lines
 
   -- Auto open the float, so you can easily read the errors when jumping with `[d` and `]d`
-  jump = { float = true },
+  jump = { float = true, warp = true },
 }
 
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
@@ -257,6 +267,7 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added via a link or github org/name. To run setup automatically, use `opts = {}`
   { 'NMAC427/guess-indent.nvim', opts = {} },
+  { 'norcalli/nvim-colorizer.lua', opts = {} },
 
   -- Alternatively, use `config = function() ... end` for full control over the configuration.
   -- If you prefer to call `setup` explicitly, use:
@@ -600,9 +611,12 @@ require('lazy').setup({
       --  See `:help lsp-config` for information about keys and how to configure
       ---@type table<string, vim.lsp.Config>
       local servers = {
-        -- clangd = {},
+        clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {},
+        ruff = {},
+        qmlls = { cmd = { 'qmlls6' } },
+
         -- rust_analyzer = {},
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -732,6 +746,10 @@ require('lazy').setup({
           --   end,
           -- },
         },
+        -- do not really know do not realy care
+        snippets = {
+          should_show_items = function(ctx) return ctx.trigger.initial_kind ~= 'trigger_character' and not require('blink.cmp').snippet_active() end,
+        },
         opts = {},
       },
     },
@@ -760,7 +778,7 @@ require('lazy').setup({
         -- <c-k>: Toggle signature help
         --
         -- See :h blink-cmp-config-keymap for defining your own keymap
-        preset = 'default',
+        preset = 'super-tab',
 
         -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
         --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -775,7 +793,7 @@ require('lazy').setup({
       completion = {
         -- By default, you may press `<c-space>` to show the documentation.
         -- Optionally, set `auto_show = true` to show the documentation after a delay.
-        documentation = { auto_show = false, auto_show_delay_ms = 500 },
+        documentation = { auto_show = true, auto_show_delay_ms = 500 },
       },
 
       sources = {
@@ -867,6 +885,55 @@ require('lazy').setup({
     end,
   },
 
+  -- haskell language support
+  {
+    'mrcjkb/haskell-tools.nvim',
+    -- To avoid being surprised by breaking changes,
+    -- I recommend you set a version range
+    -- version = '^9',
+    -- This plugin implements proper lazy-loading (see :h lua-plugin-lazy).
+    -- No need for lazy.nvim to lazy-load it.
+    lazy = false,
+    'mfussenegger/nvim-dap',
+  },
+
+  -- STYLE:
+  -- prettier cursor
+  {
+    'sphamba/smear-cursor.nvim',
+    opts = {
+      -- Smear cursor when switching buffers or windows.
+      smear_between_buffers = true,
+
+      -- Smear cursor when moving within line or to neighbor lines.
+      -- Use `min_horizontal_distance_smear` and `min_vertical_distance_smear` for finer control
+      smear_between_neighbor_lines = true,
+
+      -- Draw the smear in buffer space instead of screen space when scrolling
+      scroll_buffer_space = true,
+
+      -- Set to `true` if your font supports legacy computing symbols (block unicode symbols).
+      -- Smears and particles will look a lot less blocky.
+      legacy_computing_symbols_support = false,
+
+      -- Smear cursor in insert mode.
+      -- See also `vertical_bar_cursor_insert_mode` and `distance_stop_animating_vertical_bar`.
+      smear_insert_mode = true,
+
+      -- Smear cursor color. Defaults to Cursor GUI color if not set.
+      -- Set to "none" to match the text color at the target cursor position.
+      -- Can be a hex color code, or a highlight group name.
+      cursor_color = '#d3cdc3',
+
+      stiffness = 0.8, -- 0.6      [0, 1]
+      trailing_stiffness = 0.6, -- 0.45     [0, 1]
+      stiffness_insert_mode = 0.7, -- 0.5      [0, 1]
+      trailing_stiffness_insert_mode = 0.7, -- 0.5      [0, 1]
+      damping = 0.95, -- 0.85     [0, 1]
+      damping_insert_mode = 0.95, -- 0.9      [0, 1]
+      distance_stop_animating = 0.5, -- 0.1      > 0
+    },
+  },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     lazy = false,
@@ -875,7 +942,7 @@ require('lazy').setup({
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter-intro`
     config = function()
       -- ensure basic parser are installed
-      local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+      local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'qmljs' }
       require('nvim-treesitter').install(parsers)
 
       ---@param buf integer
@@ -967,6 +1034,11 @@ require('lazy').setup({
     },
   },
 })
-
+require('colorizer').setup()
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+
+-- temp options
+--
+-- temporary fix of color issues with qml files
+vim.lsp.semantic_tokens.enable(false)
